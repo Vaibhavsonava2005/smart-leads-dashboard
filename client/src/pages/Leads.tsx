@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Search, Filter } from 'lucide-react';
-import { fetchLeads, exportCsv, deleteLead } from '../api/leadApi';
+import { Download, Search, Filter, Plus } from 'lucide-react';
+import { fetchLeads, exportCsv, deleteLead, createLead, updateLead } from '../api/leadApi';
 import { useDebounce } from '../hooks/useDebounce';
 import { useAuthStore } from '../store/authStore';
+import LeadModal from '../components/LeadModal';
 
 
 export default function Leads() {
@@ -21,12 +22,43 @@ export default function Leads() {
     queryFn: () => fetchLeads({ page, limit: 10, search: debouncedSearch, status, source, sort }),
   });
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create'|'edit'|'view'>('create');
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+
   const handleExport = async () => {
     try {
       await exportCsv();
     } catch (error) {
       alert('Failed to export leads');
     }
+  };
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setSelectedLead(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (lead: any) => {
+    setModalMode('edit');
+    setSelectedLead(lead);
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = (lead: any) => {
+    setModalMode('view');
+    setSelectedLead(lead);
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async (data: any) => {
+    if (modalMode === 'create') {
+      await createLead(data);
+    } else if (modalMode === 'edit' && selectedLead) {
+      await updateLead(selectedLead._id, data);
+    }
+    refetch();
   };
 
   const handleDelete = async (id: string) => {
@@ -51,13 +83,22 @@ export default function Leads() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Leads Management</h1>
-        <button
-          onClick={handleExport}
-          className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={openCreateModal}
+            className="flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Lead
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -118,9 +159,7 @@ export default function Leads() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                {user?.role === 'ADMIN' && (
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                )}
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -132,13 +171,13 @@ export default function Leads() {
                     <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div></td>
                     <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div></td>
                     <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div></td>
-                    {user?.role === 'ADMIN' && <td className="px-6 py-4 whitespace-nowrap text-right"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 ml-auto"></div></td>}
+                    <td className="px-6 py-4 whitespace-nowrap text-right"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 ml-auto"></div></td>
                   </tr>
                 ))
               ) : data?.data.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={user?.role === 'ADMIN' ? 5 : 4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex flex-col items-center">
                       <Filter className="h-10 w-10 text-gray-300 mb-2" />
                       <p>No leads found.</p>
@@ -166,16 +205,28 @@ export default function Leads() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {new Date(lead.createdAt).toLocaleDateString()}
                     </td>
-                    {user?.role === 'ADMIN' && (
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                      <button
+                        onClick={() => openViewModal(lead)}
+                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => openEditModal(lead)}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Edit
+                      </button>
+                      {user?.role === 'ADMIN' && (
                         <button
                           onClick={() => handleDelete(lead._id)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                         >
                           Delete
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -208,6 +259,13 @@ export default function Leads() {
           </div>
         )}
       </div>
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleModalSubmit}
+        lead={selectedLead}
+        mode={modalMode}
+      />
     </div>
   );
 }
