@@ -20,7 +20,11 @@ export default function Login() {
       login(response.data.data);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to login');
+      const errorMessage = err.response?.data?.errors?.[0]?.message 
+        || err.response?.data?.error 
+        || err.response?.data?.message 
+        || 'Failed to login';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

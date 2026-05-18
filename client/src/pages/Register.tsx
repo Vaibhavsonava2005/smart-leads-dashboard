@@ -22,7 +22,11 @@ export default function Register() {
       login(response.data.data);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to register');
+      const errorMessage = err.response?.data?.errors?.[0]?.message 
+        || err.response?.data?.error 
+        || err.response?.data?.message 
+        || 'Failed to register';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
