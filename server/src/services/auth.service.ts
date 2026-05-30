@@ -1,20 +1,22 @@
 import { User } from '../models/user.model';
 import { generateToken } from '../utils/generateToken';
 import { ApiError } from '../utils/ApiError';
+import { UserRole } from '../interfaces/auth.interface';
 
 export const registerUser = async (data: any) => {
-  const { name, email, password, role } = data;
+  const { name, email, password } = data;
 
   const userExists = await User.findOne({ email });
   if (userExists) {
     throw new ApiError(400, 'User already exists');
   }
 
+  // Never allow self-assigning admin role via registration
   const user = await User.create({
     name,
     email,
     password,
-    role,
+    role: UserRole.SALES,
   });
 
   return {

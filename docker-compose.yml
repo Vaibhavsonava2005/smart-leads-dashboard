@@ -10,7 +10,8 @@ services:
     environment:
       - PORT=5000
       - MONGO_URI=mongodb://mongo:27017/smart-leads
-      - JWT_SECRET=supersecretjwtkey_for_development
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your .env file}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:80}
     depends_on:
       - mongo
     networks:
