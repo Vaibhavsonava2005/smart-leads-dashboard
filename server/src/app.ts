@@ -5,14 +5,20 @@ import morgan from 'morgan';
 import authRoutes from './routes/auth.routes';
 import leadRoutes from './routes/lead.routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
+import { ENV } from './config/env';
 
 const app: Application = express();
 
 // Middlewares
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: ENV.CORS_ORIGIN,
+  credentials: true,
+}));
 app.use(helmet());
-app.use(morgan('dev'));
+if (ENV.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
 
 // Health Check
 app.get('/health', (req: Request, res: Response) => {

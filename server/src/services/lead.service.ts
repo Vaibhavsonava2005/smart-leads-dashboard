@@ -2,13 +2,17 @@ import mongoose from 'mongoose';
 import { Lead } from '../models/lead.model';
 import { ILead } from '../interfaces/lead.interface';
 
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 export const createLead = async (data: any) => {
   return await Lead.create(data);
 };
 
 export const getLeads = async (query: any) => {
   const page = parseInt(query.page as string) || 1;
-  const limit = parseInt(query.limit as string) || 10;
+  const limit = Math.min(parseInt(query.limit as string) || 10, 100);
   const skip = (page - 1) * limit;
 
   // Dynamic Query Building
@@ -23,9 +27,10 @@ export const getLeads = async (query: any) => {
   }
 
   if (query.search) {
+    const sanitized = escapeRegex(query.search as string);
     filter.$or = [
-      { name: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { name: { $regex: sanitized, $options: 'i' } },
+      { email: { $regex: sanitized, $options: 'i' } },
     ];
   }
 
