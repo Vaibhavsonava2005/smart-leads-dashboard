@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/axios';
 
@@ -19,11 +20,13 @@ export default function Login() {
       const response = await api.post('/auth/login', { email, password });
       login(response.data.data);
       navigate('/dashboard');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.errors?.[0]?.message 
-        || err.response?.data?.error 
-        || err.response?.data?.message 
-        || 'Failed to login';
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{ message?: string; errors?: { message: string }[] }>;
+      const data = axiosErr.response?.data;
+      const errorMessage =
+        (Array.isArray(data?.errors) && data.errors.length > 0)
+          ? data.errors.map((e) => e.message).join(', ')
+          : data?.message || 'Failed to login';
       setError(errorMessage);
     } finally {
       setLoading(false);
